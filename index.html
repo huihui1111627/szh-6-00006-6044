@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>山区森林火灾空地协同推演平台</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<header>
+  <h1>山区森林火灾空地协同推演平台</h1>
+  <div class="view-switch">
+    <button id="viewMain" class="active">态势推演</button>
+    <button id="viewCompare">策略并行回放</button>
+  </div>
+</header>
+
+<div id="mainView">
+  <div id="toolbar">
+    <span class="group">
+      <button id="btnPlay">▶ 播放</button>
+      <button id="btnSpeed">1×</button>
+      <button id="btnReset">重置</button>
+      <span id="clock" class="clock">T+00:00</span>
+    </span>
+    <span class="group">
+      操作：
+      <button data-mode="inspect" class="mode active">查看/指挥</button>
+      <button data-mode="firebreak" class="mode">拖设隔离带</button>
+      <button data-mode="road" class="mode">道路封控</button>
+    </span>
+    <span class="group">
+      突发事件：
+      <button id="evWind">风向突变</button>
+      <button id="evRoad">道路失效</button>
+      <button id="evCommsDown">通信中断</button>
+      <button id="evCommsUp" disabled>通信恢复</button>
+    </span>
+    <span class="group">
+      通信：<span id="commsState" class="good">正常</span>
+    </span>
+  </div>
+  <div id="content">
+    <div id="mapWrap">
+      <canvas id="map"></canvas>
+      <div id="windBox"><span id="windArrow">➤</span><span id="windText"></span></div>
+      <div id="legend">
+        <span><i style="background:#ff6d00"></i>火线</span>
+        <span><i style="background:#16120f"></i>已烧</span>
+        <span><i style="background:#6e4a2a"></i>隔离带</span>
+        <span><i style="background:#c9a227"></i>计划隔离带</span>
+        <span><i style="background:#2f6f9f"></i>水源</span>
+        <span><i style="background:#8f8f8f"></i>道路</span>
+        <span><i style="background:#7a2a2a"></i>封闭道路</span>
+        <span><i style="background:#2e7d32"></i>地面队伍</span>
+        <span><i style="background:#0277bd"></i>直升机</span>
+        <span><i style="background:#66bb6a"></i>集结点</span>
+      </div>
+      <div id="hint"></div>
+      <div id="cellInfo"></div>
+    </div>
+    <aside id="sidebar">
+      <section><h3>态势</h3><div id="situation"></div></section>
+      <section><h3>告警处置</h3><div id="alerts"></div></section>
+      <section><h3>救援力量</h3><div id="units"></div></section>
+      <section><h3>事件日志</h3><div id="log"></div></section>
+    </aside>
+  </div>
+</div>
+
+<div id="compareView" hidden>
+  <div id="cmpControls">
+    <button id="cmpPlay">▶ 回放</button>
+    <button id="cmpReset">重置回放</button>
+    <input type="range" id="cmpSlider" min="0" max="600" value="0" step="1">
+    <span id="cmpClock" class="clock">T+00:00</span>
+    <span class="tip">三套策略在相同起火条件、相同突发事件下并行推演，可拖动时间轴对比</span>
+  </div>
+  <div id="cmpGrid"></div>
+</div>
+
+<div id="commsModal" class="modal" hidden>
+  <div class="modal-box">
+    <h3>通信恢复 — 现场状态核对</h3>
+    <p>通信中断期间现场按最后指令继续行动，实际状态可能与指挥计划不一致：</p>
+    <table id="reconTable"></table>
+    <p id="reconOutbox"></p>
+    <div class="modal-ops">
+      <button id="reconSync">以现场为准同步，并下达暂存指令</button>
+      <button id="reconDrop">仅同步状态，作废暂存指令</button>
+    </div>
+  </div>
+</div>
+
+<script src="js/core.js"></script>
+<script src="js/terrain.js"></script>
+<script src="js/fire.js"></script>
+<script src="js/units.js"></script>
+<script src="js/simulation.js"></script>
+<script src="js/strategies.js"></script>
+<script src="js/render.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/main.js"></script>
+</body>
+</html>
