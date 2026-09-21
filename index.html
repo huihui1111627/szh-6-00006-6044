@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>山区森林火灾 · 空地协同推演</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div id="app">
+
+  <!-- 顶栏 -->
+  <header id="topbar">
+    <div class="tb-brand">
+      <span class="tb-logo">🔥</span>
+      <div>
+        <div class="tb-title">山区森林火灾 · 空地协同推演</div>
+        <div class="tb-sub">火线扩散 / 风向地形 / 道路通行 / 力量任务 / 多策略回放</div>
+      </div>
+    </div>
+    <div class="tb-clock">
+      <div class="clock-time" id="clockTime">T+00:00</div>
+      <div class="clock-meta"><span id="clockState">推演中</span> · <span id="clockSpeed">1×</span></div>
+    </div>
+    <div class="tb-actions">
+      <button class="btn" id="btnWind" title="调整风向风速">🌬 风向</button>
+      <button class="btn" id="btnClosure" title="在地图上点选道路进行封闭">🚧 封路</button>
+      <button class="btn" id="btnBreak" title="拖画隔离带">✂ 隔离带</button>
+      <span class="tb-sep"></span>
+      <button class="btn" id="btnPlay" title="播放/暂停">⏸ 暂停</button>
+      <button class="btn" id="btnStep" title="单步推进 1 分钟">⏭</button>
+      <select id="selSpeed" class="btn select-btn" title="推演速度">
+        <option value="1">1×</option>
+        <option value="2">2×</option>
+        <option value="4" selected>4×</option>
+        <option value="10">10×</option>
+        <option value="30">30×</option>
+      </select>
+      <span class="tb-sep"></span>
+      <button class="btn" id="btnFork" title="以当前方案为基线，复制一个并行对比策略">⧉ 分叉策略</button>
+      <button class="btn" id="btnCompare" title="并列回放多个策略">▦ 对比</button>
+      <span class="tb-sep"></span>
+      <button class="btn warn" id="btnComm" title="模拟通信中断，恢复后进行现场对账">📵 中断通信</button>
+      <button class="btn" id="btnReset" title="重置到起火时刻">↺ 重置</button>
+    </div>
+  </header>
+
+  <!-- 全局告警横幅 -->
+  <div id="alertBanner" class="hidden"></div>
+
+  <div id="main">
+
+    <!-- 地图区 -->
+    <section id="mapPane">
+      <div id="canvasStack" class="canvas-stack single">
+        <!-- 策略视图由 JS 注入，至少一个主视图 -->
+      </div>
+      <div id="mapOverlay">
+        <div class="mode-hint" id="modeHint">默认：点击队伍/目标查看详情；选中队伍后点击道路节点 = 指定进入方向</div>
+        <div class="legend">
+          <span><i class="lg lg-fire"></i>火线</span>
+          <span><i class="lg lg-break"></i>隔离带</span>
+          <span><i class="lg lg-road"></i>道路</span>
+          <span><i class="lg lg-road-closed"></i>已封闭</span>
+          <span><i class="lg lg-ground"></i>地面队</span>
+          <span><i class="lg lg-air"></i>直升机</span>
+          <span><i class="lg lg-target"></i>保护目标</span>
+          <span><i class="lg lg-water"></i>水源</span>
+        </div>
+      </div>
+      <div id="commVeil" class="hidden">
+        <div class="veil-card">
+          <div class="veil-icon">📵</div>
+          <div class="veil-title">通信中断中</div>
+          <div class="veil-sub">已中断 <b id="veilElapsed">0</b> 分钟 · 前方态势按真实世界继续推演</div>
+          <div class="veil-queued">
+            <div>中断期间下达的指令将进入待确认队列：</div>
+            <ul id="veilQueue"><li class="empty">暂无待确认指令</li></ul>
+          </div>
+          <button class="btn primary" id="btnCommRestore">恢复通信并对账</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- 右侧面板 -->
+    <aside id="sidePane">
+      <nav class="tabs">
+        <button class="tab active" data-tab="forces">救援力量 <em id="tabForceBadge">0</em></button>
+        <button class="tab" data-tab="targets">保护目标 <em id="tabTargetBadge">0</em></button>
+        <button class="tab" data-tab="strategies">策略对比 <em id="tabStratBadge">1</em></button>
+        <button class="tab" data-tab="log">指令日志 <em id="tabLogBadge">0</em></button>
+      </nav>
+
+      <div class="tab-body" data-tab="forces">
+        <div id="forceList" class="force-list"></div>
+      </div>
+
+      <div class="tab-body hidden" data-tab="targets">
+        <div id="targetList" class="target-list"></div>
+      </div>
+
+      <div class="tab-body hidden" data-tab="strategies">
+        <div id="strategyList" class="strategy-list"></div>
+        <div id="metricsPanel"></div>
+      </div>
+
+      <div class="tab-body hidden" data-tab="log">
+        <div id="cmdLog" class="cmd-log"></div>
+      </div>
+    </aside>
+  </div>
+</div>
+
+<!-- 风向调节弹窗 -->
+<div id="dlgWind" class="modal hidden">
+  <div class="modal-card">
+    <div class="modal-title">风向 / 风速调整</div>
+    <div class="wind-body">
+      <canvas id="windDial" width="200" height="200"></canvas>
+      <div class="wind-ctl">
+        <label>风向（风吹向的方位角）<span id="windDirLabel">正南 180°</span></label>
+        <input type="range" id="windDir" min="0" max="359" value="180">
+        <label>风速 <span id="windSpdLabel">6 m/s</span></label>
+        <input type="range" id="windSpd" min="0" max="15" value="6">
+        <div class="wind-presets">
+          <button class="btn sm" data-dir="0">北风</button>
+          <button class="btn sm" data-dir="45">东北</button>
+          <button class="btn sm" data-dir="90">东风</button>
+          <button class="btn sm" data-dir="135">东南</button>
+          <button class="btn sm" data-dir="180">南风</button>
+          <button class="btn sm" data-dir="225">西南</button>
+          <button class="btn sm" data-dir="270">西风</button>
+          <button class="btn sm" data-dir="315">西北</button>
+        </div>
+        <div class="wind-note">注意：风向突变后，已下达任务将自动复核，不可执行的任务会被标记。</div>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn" id="windCancel">取消</button>
+      <button class="btn primary" id="windApply">下达气象变更</button>
+    </div>
+  </div>
+</div>
+
+<!-- 通信恢复对账弹窗 -->
+<div id="dlgRecon" class="modal hidden">
+  <div class="modal-card wide">
+    <div class="modal-title">通信恢复 · 现场状态与原计划对账 <span id="reconGap" class="recon-gap"></span></div>
+    <div class="recon-body">
+      <div class="recon-col">
+        <div class="recon-h">需要撤离的队伍</div>
+        <div id="reconEvac"></div>
+      </div>
+      <div class="recon-col">
+        <div class="recon-h">需要重新确认的任务</div>
+        <div id="reconTasks"></div>
+      </div>
+      <div class="recon-col">
+        <div class="recon-h">中断期间待确认指令</div>
+        <div id="reconQueued"></div>
+      </div>
+      <div class="recon-col">
+        <div class="recon-h">现场新发现</div>
+        <div id="reconDiscoveries"></div>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn warn" id="reconEvacAll">全部撤离危险队伍</button>
+      <button class="btn" id="reconRecheckAll">全部任务重新确认</button>
+      <button class="btn" id="reconDiscardQueue">清空待确认指令</button>
+      <span style="flex:1"></span>
+      <button class="btn primary" id="reconClose">确认对账结果</button>
+    </div>
+  </div>
+</div>
+
+<!-- 地图气泡：队伍/目标 -->
+<div id="mapPopup" class="map-popup hidden"></div>
+
+<!-- Toast -->
+<div id="toastStack"></div>
+
+<script src="js/util.js"></script>
+<script src="js/scenario.js"></script>
+<script src="js/sim.js"></script>
+<script src="js/render.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/main.js"></script>
+</body>
+</html>
